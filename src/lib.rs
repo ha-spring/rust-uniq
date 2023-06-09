@@ -1,5 +1,7 @@
 use clap::{App, Arg};
 use std::error::Error;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -10,8 +12,24 @@ pub struct Config {
     count: bool,
 }
 
+fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
+    match filename {
+        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
+        _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+    }
+}
+
 pub fn run(config: Config) -> MyResult<()> {
-    println!("{:?}", config);
+    let mut file = open(&config.in_file).map_err(|e| format!("{}: {}", config.in_file, e))?;
+    let mut line = String::new();
+    loop {
+        let bytes = file.read_line(&mut line)?;
+        if bytes == 0 {
+            break;
+        }
+        print!("{}", line);
+        line.clear()
+    }
     Ok(())
 }
 
@@ -23,19 +41,19 @@ pub fn get_args() -> MyResult<Config> {
             Arg::with_name("in_file")
                 .value_name("IN_FILE")
                 .help("Input file")
-                .default_value("-")
+                .default_value("-"),
         )
         .arg(
             Arg::with_name("out_file")
                 .value_name("OUT_FILE")
-                .help("Out file")
+                .help("Out file"),
         )
         .arg(
             Arg::with_name("count")
                 .short("c")
                 .long("count")
                 .takes_value(false)
-                .help("Show counts")
+                .help("Show counts"),
         )
         .get_matches();
 
